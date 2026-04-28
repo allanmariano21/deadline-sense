@@ -1,9 +1,17 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { Plus, X, CalendarDays } from "lucide-react";
-import { useRef, useState } from "react";
+import { Plus, X, CalendarDays, ChevronLeft, ChevronRight, ChevronUp, ChevronDown } from "lucide-react";
+import { useState } from "react";
+import {
+  addMonths, subMonths,
+  startOfMonth, endOfMonth,
+  startOfWeek, endOfWeek,
+  eachDayOfInterval,
+  format, isSameDay, isToday, isSameMonth, isBefore, startOfToday,
+} from "date-fns";
 import type { Difficulty, Task } from "@/lib/types";
+import { cn } from "@/lib/utils";
 
 const emojiPalette = ["📐", "📚", "💻", "🎤", "🧬", "🧪", "🎨", "🧠", "✏️", "🎧"];
 
@@ -194,30 +202,30 @@ export function AddTaskDialog({ onCreate }: { onCreate: (task: Task) => void }) 
 }
 
 function DeadlinePicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
-  const inputRef = useRef<HTMLInputElement>(null);
+  const [showPicker, setShowPicker] = useState(false);
 
   function preset(days: number, hour = 23, minute = 59) {
     const d = new Date();
     d.setDate(d.getDate() + days);
     d.setHours(hour, minute, 0, 0);
-    onChange(d.toISOString().slice(0, 16));
+    const pad = (n: number) => String(n).padStart(2, "0");
+    onChange(`${format(d, "yyyy-MM-dd")}T${pad(hour)}:${pad(minute)}`);
   }
 
   const presets = [
-    { label: "Tonight", action: () => preset(0, 23, 59) },
-    { label: "Tomorrow", action: () => preset(1, 23, 59) },
+    { label: "Tonight",   action: () => preset(0, 23, 59) },
+    { label: "Tomorrow",  action: () => preset(1, 23, 59) },
     { label: "In 3 days", action: () => preset(3, 23, 59) },
     { label: "Next week", action: () => preset(7, 23, 59) },
   ];
 
-  const label = dueLabel(value);
+  const label  = dueLabel(value);
   const isPast = label.startsWith("Already");
 
   return (
     <div className="mb-3">
       <span className="text-xs uppercase tracking-wider text-muted block mb-2">Deadline</span>
 
-      {/* Preset chips */}
       <div className="flex flex-wrap gap-2 mb-3">
         {presets.map((p) => (
           <button
@@ -231,34 +239,22 @@ function DeadlinePicker({ value, onChange }: { value: string; onChange: (v: stri
         ))}
         <button
           type="button"
-          onClick={() => inputRef.current?.showPicker?.()}
+          onClick={() => setShowPicker(true)}
           className="px-3 py-1.5 rounded-xl text-xs font-medium bg-white/40 dark:bg-white/5 hover:bg-pink-500/20 hover:text-pink-500 transition-all flex items-center gap-1.5"
         >
           <CalendarDays className="w-3.5 h-3.5" /> Pick date
         </button>
       </div>
 
-      {/* Hidden native picker triggered by "Pick date" */}
-      <input
-        ref={inputRef}
-        type="datetime-local"
-        value={value}
-        min={new Date().toISOString().slice(0, 16)}
-        onChange={(e) => onChange(e.target.value)}
-        className="sr-only"
-      />
-
-      {/* Selected date display */}
       {value && (
         <motion.div
           key={value}
           initial={{ opacity: 0, y: -4 }}
           animate={{ opacity: 1, y: 0 }}
-          className={`flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-medium ${
-            isPast
-              ? "bg-pink-500/15 text-pink-500"
-              : "bg-brand-500/15 text-brand-500"
+          className={`flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-medium cursor-pointer ${
+            isPast ? "bg-pink-500/15 text-pink-500" : "bg-brand-500/15 text-brand-500"
           }`}
+          onClick={() => setShowPicker(true)}
         >
           <CalendarDays className="w-4 h-4 shrink-0" />
           <span className="flex-1">
@@ -270,7 +266,178 @@ function DeadlinePicker({ value, onChange }: { value: string; onChange: (v: stri
           <span className="font-semibold text-xs opacity-75">{label}</span>
         </motion.div>
       )}
+
+      <AnimatePresence>
+        {showPicker && (
+          <CustomDatePicker
+            value={value}
+            onChange={onChange}
+            onClose={() => setShowPicker(false)}
+          />
+        )}
+      </AnimatePresence>
     </div>
+  );
+}
+
+function CustomDatePicker({ value, onChange, onClose }: {
+  value: string;
+  onChange: (v: string) => void;
+  onClose: () => void;
+}) {
+  const parsed   = value ? new Date(value) : (() => { const d = new Date(); d.setDate(d.getDate() + 1); d.setHours(23, 59, 0, 0); return d; })();
+  const [viewMonth,    setViewMonth]    = useState(startOfMonth(parsed));
+  const [selectedDay,  setSelectedDay]  = useState<Date>(parsed);
+  const [hour24,       setHour24]       = useState(parsed.getHours());
+  const [minute,       setMinute]       = useState(Math.round(parsed.getMinutes() / 5) * 5 % 60);
+
+  const days        = eachDayOfInterval({
+    start: startOfWeek(startOfMonth(viewMonth), { weekStartsOn: 1 }),
+    end:   endOfWeek(endOfMonth(viewMonth),     { weekStartsOn: 1 }),
+  });
+  const displayHour = hour24 % 12 || 12;
+  const isAm        = hour24 < 12;
+
+  function confirm() {
+    const d = new Date(selectedDay);
+    d.setHours(hour24, minute, 0, 0);
+    const pad = (n: number) => String(n).padStart(2, "0");
+    onChange(`${format(d, "yyyy-MM-dd")}T${pad(hour24)}:${pad(minute)}`);
+    onClose();
+  }
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm grid place-items-center p-4"
+      onClick={onClose}
+    >
+      <motion.div
+        initial={{ scale: 0.95, opacity: 0, y: 16 }}
+        animate={{ scale: 1, opacity: 1, y: 0 }}
+        exit={{ scale: 0.95, opacity: 0, y: 8 }}
+        transition={{ type: "spring", stiffness: 320, damping: 28 }}
+        onClick={(e) => e.stopPropagation()}
+        className="glass rounded-3xl p-5 w-full max-w-sm"
+      >
+        {/* Month navigation */}
+        <div className="flex items-center justify-between mb-3">
+          <button
+            onClick={() => setViewMonth((m) => subMonths(m, 1))}
+            className="p-1.5 rounded-xl hover:bg-white/30 dark:hover:bg-white/10 transition-colors"
+          >
+            <ChevronLeft className="w-4 h-4" />
+          </button>
+          <span className="font-bold text-sm">{format(viewMonth, "MMMM yyyy")}</span>
+          <button
+            onClick={() => setViewMonth((m) => addMonths(m, 1))}
+            className="p-1.5 rounded-xl hover:bg-white/30 dark:hover:bg-white/10 transition-colors"
+          >
+            <ChevronRight className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* Weekday headers */}
+        <div className="grid grid-cols-7 mb-1">
+          {["M","T","W","T","F","S","S"].map((d, i) => (
+            <p key={i} className="text-[10px] uppercase tracking-wider text-muted text-center py-1">{d}</p>
+          ))}
+        </div>
+
+        {/* Calendar grid */}
+        <div className="grid grid-cols-7 gap-0.5 mb-4">
+          {days.map((day) => {
+            const inMonth    = isSameMonth(day, viewMonth);
+            const isSelected = isSameDay(day, selectedDay);
+            const today      = isToday(day);
+            const past       = isBefore(day, startOfToday());
+
+            return (
+              <button
+                key={day.toISOString()}
+                onClick={() => { if (!past) setSelectedDay(day); }}
+                disabled={past}
+                className={cn(
+                  "aspect-square rounded-xl text-xs font-semibold transition-all",
+                  !inMonth && "opacity-30",
+                  past && "opacity-20 cursor-not-allowed",
+                  isSelected && "bg-gradient-to-br from-brand-500 to-pink-500 text-white shadow-md shadow-brand-500/30",
+                  !isSelected && today && "ring-2 ring-brand-500/60",
+                  !isSelected && !past && inMonth && "hover:bg-white/30 dark:hover:bg-white/10",
+                )}
+              >
+                {format(day, "d")}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Time picker */}
+        <div className="flex items-center gap-4 px-4 py-3 bg-white/20 dark:bg-white/5 rounded-2xl mb-4">
+          <span className="text-xs text-muted uppercase tracking-wider mr-auto">Time</span>
+
+          {/* Hour */}
+          <div className="flex flex-col items-center gap-0.5">
+            <button onClick={() => setHour24((h) => (h + 1) % 24)} className="p-0.5 rounded-lg hover:bg-white/30 transition-colors">
+              <ChevronUp className="w-3.5 h-3.5" />
+            </button>
+            <span className="font-bold text-xl w-9 text-center tabular-nums">
+              {String(displayHour).padStart(2, "0")}
+            </span>
+            <button onClick={() => setHour24((h) => (h - 1 + 24) % 24)} className="p-0.5 rounded-lg hover:bg-white/30 transition-colors">
+              <ChevronDown className="w-3.5 h-3.5" />
+            </button>
+          </div>
+
+          <span className="font-bold text-xl text-muted">:</span>
+
+          {/* Minute */}
+          <div className="flex flex-col items-center gap-0.5">
+            <button onClick={() => setMinute((m) => (m + 5) % 60)} className="p-0.5 rounded-lg hover:bg-white/30 transition-colors">
+              <ChevronUp className="w-3.5 h-3.5" />
+            </button>
+            <span className="font-bold text-xl w-9 text-center tabular-nums">
+              {String(minute).padStart(2, "0")}
+            </span>
+            <button onClick={() => setMinute((m) => (m - 5 + 60) % 60)} className="p-0.5 rounded-lg hover:bg-white/30 transition-colors">
+              <ChevronDown className="w-3.5 h-3.5" />
+            </button>
+          </div>
+
+          {/* AM / PM */}
+          <div className="flex flex-col gap-1.5 ml-1">
+            <button
+              onClick={() => setHour24((h) => h < 12 ? h : h - 12)}
+              className={cn(
+                "px-2.5 py-1 rounded-lg text-xs font-bold transition-all",
+                isAm
+                  ? "bg-gradient-to-r from-brand-500 to-pink-500 text-white shadow shadow-brand-500/30"
+                  : "bg-white/20 dark:bg-white/5 text-muted",
+              )}
+            >AM</button>
+            <button
+              onClick={() => setHour24((h) => h >= 12 ? h : h + 12)}
+              className={cn(
+                "px-2.5 py-1 rounded-lg text-xs font-bold transition-all",
+                !isAm
+                  ? "bg-gradient-to-r from-brand-500 to-pink-500 text-white shadow shadow-brand-500/30"
+                  : "bg-white/20 dark:bg-white/5 text-muted",
+              )}
+            >PM</button>
+          </div>
+        </div>
+
+        {/* Confirm */}
+        <button
+          onClick={confirm}
+          className="w-full py-3 rounded-2xl font-semibold text-white bg-gradient-to-r from-brand-600 via-pink-500 to-amber-400 shadow-lg shadow-brand-500/30 hover:shadow-xl hover:shadow-brand-500/40 transition-shadow"
+        >
+          Set deadline ✨
+        </button>
+      </motion.div>
+    </motion.div>
   );
 }
 
