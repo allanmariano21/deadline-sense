@@ -1,99 +1,93 @@
 "use client";
 
 import { AnimatePresence } from "framer-motion";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import confetti from "canvas-confetti";
+import { Loader2, LogOut } from "lucide-react";
 import type { Task } from "@/lib/types";
-import { sortByPriority } from "@/lib/priority";
-import { sampleTasks } from "@/lib/sample-tasks";
+import { sortByPriority, academicHealth } from "@/lib/priority";
 import { isSupabaseConfigured } from "@/lib/supabase/client";
+import { useAuth } from "@/lib/supabase/useAuth";
+import { useSupabaseTasks } from "@/lib/supabase/useSupabaseTasks";
 import { Header } from "./Header";
 import { SmartSuggestion } from "./SmartSuggestion";
 import { AcademicHealth } from "./AcademicHealth";
 import { TaskCard } from "./TaskCard";
 import { AddTaskDialog } from "./AddTaskDialog";
-import { academicHealth } from "@/lib/priority";
-
-const STORAGE_KEY = "deadline-sense.tasks.v1";
+import { LoginScreen } from "./AuthGate";
 
 export function Dashboard() {
-  const [tasks, setTasks] = useState<Task[]>(sampleTasks);
-  const [hydrated, setHydrated] = useState(false);
+  const { user, loading: authLoading, signOut } = useAuth();
+  const supabaseEnabled = isSupabaseConfigured();
 
-  // Load from localStorage so the demo persists between refreshes.
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    try {
-      const raw = window.localStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw) as Task[];
-        if (Array.isArray(parsed) && parsed.length > 0) setTasks(parsed);
-      }
-    } catch {
-      // ignore corrupt storage
-    }
-    setHydrated(true);
-  }, []);
-
-  useEffect(() => {
-    if (!hydrated || typeof window === "undefined") return;
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
-  }, [tasks, hydrated]);
+  // When Supabase is not configured, treat as "authenticated" so we fall through to localStorage.
+  const authenticated = !supabaseEnabled || !!user;
+  const { tasks, hydrated, addTask, patchTask, useSupabase } = useSupabaseTasks(authenticated);
 
   const sorted = useMemo(() => sortByPriority(tasks), [tasks]);
   const health = useMemo(() => academicHealth(tasks), [tasks]);
 
-  function toggleComplete(id: string) {
-    setTasks((prev) =>
-      prev.map((t) => {
-        if (t.id !== id) return t;
-        const isCompleting = t.status !== "done";
-        if (isCompleting) {
-          confetti({
-            particleCount: 80,
-            spread: 70,
-            origin: { y: 0.6 },
-            colors: ["#8b5cf6", "#ec4899", "#2dd4bf", "#fbbf24"],
-          });
-        }
-        return {
-          ...t,
-          status: isCompleting ? "done" : "todo",
-          progress_minutes: isCompleting ? t.effort_minutes : t.progress_minutes,
-        };
-      }),
+  // Show login screen if Supabase is configured but user is not signed in
+  if (supabaseEnabled && !authLoading && !user) {
+    return <LoginScreen onDone={() => {}} />;
+  }
+
+  // Spinner while auth state resolves
+  if (authLoading || !hydrated) {
+    return (
+      <div className="min-h-screen grid place-items-center">
+        <Loader2 className="w-8 h-8 animate-spin text-brand-500" />
+      </div>
     );
   }
 
-  function logFifteen(id: string) {
-    setTasks((prev) =>
-      prev.map((t) =>
-        t.id === id
-          ? {
-              ...t,
-              status: t.progress_minutes + 15 >= t.effort_minutes ? "in_progress" : "in_progress",
-              progress_minutes: Math.min(t.effort_minutes, t.progress_minutes + 15),
-            }
-          : t,
-      ),
-    );
+  async function toggleComplete(id: string) {
+    const task = tasks.find((t) => t.id === id);
+    if (!task) return;
+    const isCompleting = task.status !== "done";
+    if (isCompleting) {
+      confetti({
+        particleCount: 80,
+        spread: 70,
+        origin: { y: 0.6 },
+        colors: ["#8b5cf6", "#ec4899", "#2dd4bf", "#fbbf24"],
+      });
+    }
+    await patchTask(id, {
+      status: isCompleting ? "done" : "todo",
+      progress_minutes: isCompleting ? task.effort_minutes : task.progress_minutes,
+    });
   }
 
-  function startSuggestion(id: string) {
-    logFifteen(id);
-  }
-
-  function addTask(task: Task) {
-    setTasks((prev) => [task, ...prev]);
+  async function logFifteen(id: string) {
+    const task = tasks.find((t) => t.id === id);
+    if (!task) return;
+    await patchTask(id, {
+      status: "in_progress",
+      progress_minutes: Math.min(task.effort_minutes, task.progress_minutes + 15),
+    });
   }
 
   return (
     <main className="mx-auto w-full max-w-5xl px-4 sm:px-6 py-8 sm:py-12">
-      <Header healthLabel={health.label} />
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex-1">
+          <Header healthLabel={health.label} />
+        </div>
+        {user && (
+          <button
+            onClick={signOut}
+            title={`Signed in as ${user.email}`}
+            className="mt-1 p-2 rounded-xl text-muted hover:text-foreground hover:bg-white/40 transition-colors"
+          >
+            <LogOut className="w-4 h-4" />
+          </button>
+        )}
+      </div>
 
       <div className="grid lg:grid-cols-5 gap-5">
         <div className="lg:col-span-3 space-y-5">
-          <SmartSuggestion tasks={tasks} onStartTask={startSuggestion} />
+          <SmartSuggestion tasks={tasks} onStartTask={logFifteen} />
           <AcademicHealth tasks={tasks} />
         </div>
 
@@ -122,19 +116,13 @@ export function Dashboard() {
         </section>
       </div>
 
-      <SupabaseBanner />
-      <AddTaskDialog onCreate={addTask} />
-    </main>
-  );
-}
+      {!useSupabase && (
+        <p className="mt-10 text-center text-xs text-muted">
+          Local-only mode · add Supabase keys to <code className="font-mono">.env.local</code> to sync.
+        </p>
+      )}
 
-function SupabaseBanner() {
-  const [configured, setConfigured] = useState<boolean | null>(null);
-  useEffect(() => setConfigured(isSupabaseConfigured()), []);
-  if (configured !== false) return null;
-  return (
-    <p className="mt-10 text-center text-xs text-muted">
-      Running in local-only mode · add Supabase keys to <code className="font-mono">.env.local</code> to sync across devices.
-    </p>
+      <AddTaskDialog onCreate={(task: Task) => addTask(task)} />
+    </main>
   );
 }
