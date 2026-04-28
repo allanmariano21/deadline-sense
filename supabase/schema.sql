@@ -73,17 +73,11 @@ alter table public.task_groups enable row level security;
 alter table public.task_group_members enable row level security;
 
 drop policy if exists "tasks_owner_or_group" on public.tasks;
-create policy "tasks_owner_or_group" on public.tasks
+drop policy if exists "tasks_owner" on public.tasks;
+create policy "tasks_owner" on public.tasks
   for all
-  using (
-    user_id = auth.uid()
-    or assigned_to = auth.uid()
-    or group_id in (select group_id from public.task_group_members where user_id = auth.uid())
-  )
-  with check (
-    user_id = auth.uid()
-    or group_id in (select group_id from public.task_group_members where user_id = auth.uid())
-  );
+  using (user_id = auth.uid())
+  with check (user_id = auth.uid());
 
 drop policy if exists "class_blocks_owner" on public.class_blocks;
 create policy "class_blocks_owner" on public.class_blocks
