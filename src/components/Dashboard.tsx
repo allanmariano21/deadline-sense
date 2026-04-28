@@ -70,15 +70,13 @@ export function Dashboard() {
 
   return (
     <main className="mx-auto w-full max-w-5xl px-4 sm:px-6 py-8 sm:py-12">
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex-1">
-          <Header healthLabel={health.label} />
-        </div>
+      <div className="relative">
+        <Header healthLabel={health.label} />
         {user && (
           <button
             onClick={signOut}
             title={`Signed in as ${user.email}`}
-            className="mt-1 p-2 rounded-xl text-muted hover:text-foreground hover:bg-white/40 transition-colors"
+            className="absolute top-0 right-0 p-2 rounded-xl text-muted hover:text-foreground hover:bg-white/40 transition-colors"
           >
             <LogOut className="w-4 h-4" />
           </button>

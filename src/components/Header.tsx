@@ -12,7 +12,7 @@ export function Header({ healthLabel }: { healthLabel: string }) {
     hour < 22 ? "Good evening" : "Late night grind";
 
   return (
-    <header className="flex items-center justify-between gap-4 mb-8">
+    <header className="flex flex-wrap items-center justify-between gap-3 mb-8">
       <motion.div
         initial={{ opacity: 0, y: -8 }}
         animate={{ opacity: 1, y: 0 }}
@@ -38,7 +38,7 @@ export function Header({ healthLabel }: { healthLabel: string }) {
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ delay: 0.15, duration: 0.4 }}
-        className="glass rounded-2xl px-4 py-2 text-sm font-medium flex items-center gap-2"
+        className="glass rounded-2xl px-3 py-1.5 text-xs sm:text-sm font-medium flex items-center gap-2 shrink-0"
       >
         <span className="relative flex h-2.5 w-2.5">
           <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-teal-400 opacity-75" />

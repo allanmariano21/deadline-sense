@@ -38,7 +38,7 @@ export function AcademicHealth({ tasks }: { tasks: Task[] }) {
       transition={{ duration: 0.5, delay: 0.1 }}
       className="glass rounded-3xl p-6 sm:p-8"
     >
-      <div className="flex items-center justify-between gap-4 flex-wrap">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <p className="text-xs uppercase tracking-[0.18em] text-muted">Academic health</p>
           <div className="flex items-center gap-3 mt-1">

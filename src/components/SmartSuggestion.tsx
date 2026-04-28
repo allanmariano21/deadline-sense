@@ -103,11 +103,11 @@ export function SmartSuggestion({
                 className="rounded-2xl p-5 bg-gradient-to-br from-brand-600 via-brand-500 to-pink-500 text-white shadow-xl shadow-brand-500/40"
               >
                 <p className="text-sm/none opacity-80">Try this next</p>
-                <div className="flex items-center justify-between gap-3 mt-1.5">
-                  <div>
-                    <h3 className="text-lg sm:text-xl font-bold flex items-center gap-2">
-                      <span className="text-2xl">{suggestion.emoji ?? "✨"}</span>
-                      {suggestion.title}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mt-1.5">
+                  <div className="min-w-0">
+                    <h3 className="text-base sm:text-xl font-bold flex items-center gap-2 flex-wrap">
+                      <span className="text-2xl shrink-0">{suggestion.emoji ?? "✨"}</span>
+                      <span className="break-words">{suggestion.title}</span>
                     </h3>
                     <p className="text-sm opacity-90 mt-1">
                       {suggestion.course ? `${suggestion.course} · ` : ""}
@@ -118,7 +118,7 @@ export function SmartSuggestion({
                     whileHover={{ scale: 1.05, x: 2 }}
                     whileTap={{ scale: 0.95 }}
                     onClick={() => onStartTask(suggestion.id)}
-                    className="shrink-0 bg-white/20 hover:bg-white/30 rounded-xl px-4 py-2.5 font-semibold flex items-center gap-1.5 backdrop-blur"
+                    className="self-start sm:self-auto shrink-0 bg-white/20 hover:bg-white/30 rounded-xl px-4 py-2.5 font-semibold flex items-center gap-1.5 backdrop-blur"
                   >
                     Start <ArrowRight className="w-4 h-4" />
                   </motion.button>
