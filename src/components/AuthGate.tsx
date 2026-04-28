@@ -24,7 +24,10 @@ export function LoginScreen({ onDone }: { onDone: () => void }) {
 
     const { error: err } = await sb.auth.signInWithOtp({
       email: email.trim(),
-      options: { shouldCreateUser: true },
+      options: {
+        shouldCreateUser: true,
+        emailRedirectTo: `${window.location.origin}/auth/callback`,
+      },
     });
 
     if (err) { setError(err.message); setState("idle"); return; }
