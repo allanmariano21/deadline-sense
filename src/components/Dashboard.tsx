@@ -11,6 +11,7 @@ import { useSupabaseTasks } from "@/lib/supabase/useSupabaseTasks";
 import { Header } from "./Header";
 import { SmartSuggestion } from "./SmartSuggestion";
 import { AcademicHealth } from "./AcademicHealth";
+import { TaskCalendar } from "./TaskCalendar";
 import { TaskCard } from "./TaskCard";
 import { AddTaskDialog } from "./AddTaskDialog";
 import { LoginScreen } from "./AuthGate";
@@ -76,6 +77,7 @@ export function Dashboard() {
       <div className="grid lg:grid-cols-5 gap-5">
         <div className="lg:col-span-3 space-y-5">
           <SmartSuggestion tasks={tasks} onStartTask={logFifteen} />
+          <TaskCalendar tasks={tasks} />
           <AcademicHealth tasks={tasks} />
         </div>
 
