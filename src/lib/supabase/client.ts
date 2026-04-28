@@ -1,15 +1,13 @@
-import { createBrowserClient } from "@supabase/ssr";
+import { createClient } from "@supabase/supabase-js";
 
-let cached: ReturnType<typeof createBrowserClient> | null = null;
+let cached: ReturnType<typeof createClient> | null = null;
 
 export function getSupabaseBrowser() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
   if (!url || !anon) return null;
   if (cached) return cached;
-
-  cached = createBrowserClient(url, anon);
+  cached = createClient(url, anon);
   return cached;
 }
 

@@ -48,7 +48,7 @@ export function SmartSuggestion({
         </div>
         <h2 className="text-2xl sm:text-3xl font-bold mt-1">Tell me your vibe.</h2>
 
-        <div className="grid sm:grid-cols-2 gap-5 mt-6">
+        <div className="flex flex-col gap-5 mt-6">
           <div>
             <p className="text-xs uppercase tracking-wider text-muted mb-2 flex items-center gap-1.5">
               <Clock className="w-3.5 h-3.5" /> Time available
@@ -72,19 +72,19 @@ export function SmartSuggestion({
 
           <div>
             <p className="text-xs uppercase tracking-wider text-muted mb-2">Energy level</p>
-            <div className="flex gap-2">
+            <div className="grid grid-cols-3 gap-2">
               {energyOptions.map(({ value, label, icon: Icon, tint }) => (
                 <button
                   key={value}
                   onClick={() => { setEnergy(value); setRevealKey((k) => k + 1); }}
-                  className={`flex-1 px-3 py-2.5 rounded-xl text-sm font-medium flex items-center justify-center gap-2 transition-all ${
+                  className={`py-2.5 rounded-xl text-sm font-medium flex items-center justify-center gap-2 transition-all ${
                     energy === value
                       ? `bg-gradient-to-br ${tint} ring-2 ring-brand-500/50 scale-105`
                       : "bg-white/40 dark:bg-white/5 hover:bg-white/70 dark:hover:bg-white/10"
                   }`}
                 >
-                  <Icon className="w-4 h-4" />
-                  {label}
+                  <Icon className="w-4 h-4 shrink-0" />
+                  <span>{label}</span>
                 </button>
               ))}
             </div>

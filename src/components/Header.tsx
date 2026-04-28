@@ -1,9 +1,15 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Sparkles } from "lucide-react";
+import { Sparkles, LogOut } from "lucide-react";
 
-export function Header({ healthLabel }: { healthLabel: string }) {
+export function Header({
+  healthLabel,
+  onSignOut,
+}: {
+  healthLabel: string;
+  onSignOut?: () => void;
+}) {
   const hour = new Date().getHours();
   const greeting =
     hour < 5 ? "Burning the midnight oil" :
@@ -38,14 +44,26 @@ export function Header({ healthLabel }: { healthLabel: string }) {
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ delay: 0.15, duration: 0.4 }}
-        className="glass rounded-2xl px-3 py-1.5 text-xs sm:text-sm font-medium flex items-center gap-2 shrink-0"
+        className="flex items-center gap-2"
       >
-        <span className="relative flex h-2.5 w-2.5">
-          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-teal-400 opacity-75" />
-          <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-teal-400" />
-        </span>
-        <span className="text-muted">Status:</span>
-        <span className="font-semibold">{healthLabel}</span>
+        <div className="glass rounded-2xl px-3 py-1.5 text-xs sm:text-sm font-medium flex items-center gap-2">
+          <span className="relative flex h-2.5 w-2.5 shrink-0">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-teal-400 opacity-75" />
+            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-teal-400" />
+          </span>
+          <span className="text-muted">Status:</span>
+          <span className="font-semibold">{healthLabel}</span>
+        </div>
+
+        {onSignOut && (
+          <button
+            onClick={onSignOut}
+            title="Sign out"
+            className="p-2 rounded-xl text-muted hover:text-foreground hover:bg-white/40 dark:hover:bg-white/10 transition-colors"
+          >
+            <LogOut className="w-4 h-4" />
+          </button>
+        )}
       </motion.div>
     </header>
   );

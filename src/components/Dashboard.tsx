@@ -1,12 +1,11 @@
 "use client";
 
-import { AnimatePresence } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import { useMemo } from "react";
 import confetti from "canvas-confetti";
-import { Loader2, LogOut } from "lucide-react";
+import { Loader2, ListTodo } from "lucide-react";
 import type { Task } from "@/lib/types";
 import { sortByPriority, academicHealth } from "@/lib/priority";
-import { isSupabaseConfigured } from "@/lib/supabase/client";
 import { useAuth } from "@/lib/supabase/useAuth";
 import { useSupabaseTasks } from "@/lib/supabase/useSupabaseTasks";
 import { Header } from "./Header";
@@ -18,22 +17,24 @@ import { LoginScreen } from "./AuthGate";
 
 export function Dashboard() {
   const { user, loading: authLoading, signOut } = useAuth();
-  const supabaseEnabled = isSupabaseConfigured();
-
-  // When Supabase is not configured, treat as "authenticated" so we fall through to localStorage.
-  const authenticated = !supabaseEnabled || !!user;
-  const { tasks, hydrated, addTask, patchTask, useSupabase } = useSupabaseTasks(authenticated);
+  const { tasks, hydrated, addTask, patchTask } = useSupabaseTasks(user);
 
   const sorted = useMemo(() => sortByPriority(tasks), [tasks]);
   const health = useMemo(() => academicHealth(tasks), [tasks]);
 
-  // Show login screen if Supabase is configured but user is not signed in
-  if (supabaseEnabled && !authLoading && !user) {
+  if (authLoading) {
+    return (
+      <div className="min-h-screen grid place-items-center">
+        <Loader2 className="w-8 h-8 animate-spin text-brand-500" />
+      </div>
+    );
+  }
+
+  if (!user) {
     return <LoginScreen onDone={() => {}} />;
   }
 
-  // Spinner while auth state resolves
-  if (authLoading || !hydrated) {
+  if (!hydrated) {
     return (
       <div className="min-h-screen grid place-items-center">
         <Loader2 className="w-8 h-8 animate-spin text-brand-500" />
@@ -70,18 +71,7 @@ export function Dashboard() {
 
   return (
     <main className="mx-auto w-full max-w-5xl px-4 sm:px-6 py-8 sm:py-12">
-      <div className="relative">
-        <Header healthLabel={health.label} />
-        {user && (
-          <button
-            onClick={signOut}
-            title={`Signed in as ${user.email}`}
-            className="absolute top-0 right-0 p-2 rounded-xl text-muted hover:text-foreground hover:bg-white/40 transition-colors"
-          >
-            <LogOut className="w-4 h-4" />
-          </button>
-        )}
-      </div>
+      <Header healthLabel={health.label} onSignOut={signOut} />
 
       <div className="grid lg:grid-cols-5 gap-5">
         <div className="lg:col-span-3 space-y-5">
@@ -101,24 +91,31 @@ export function Dashboard() {
           </div>
 
           <AnimatePresence mode="popLayout">
-            {sorted.map((task, i) => (
-              <TaskCard
-                key={task.id}
-                task={task}
-                rank={i + 1}
-                onComplete={toggleComplete}
-                onStart={logFifteen}
-              />
-            ))}
+            {sorted.length === 0 ? (
+              <motion.div
+                key="empty"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="glass rounded-2xl p-8 text-center"
+              >
+                <ListTodo className="w-8 h-8 text-muted mx-auto mb-3" />
+                <p className="font-medium">No tasks yet</p>
+                <p className="text-sm text-muted mt-1">Tap + to add your first one.</p>
+              </motion.div>
+            ) : (
+              sorted.map((task, i) => (
+                <TaskCard
+                  key={task.id}
+                  task={task}
+                  rank={i + 1}
+                  onComplete={toggleComplete}
+                  onStart={logFifteen}
+                />
+              ))
+            )}
           </AnimatePresence>
         </section>
       </div>
-
-      {!useSupabase && (
-        <p className="mt-10 text-center text-xs text-muted">
-          Local-only mode · add Supabase keys to <code className="font-mono">.env.local</code> to sync.
-        </p>
-      )}
 
       <AddTaskDialog onCreate={(task: Task) => addTask(task)} />
     </main>

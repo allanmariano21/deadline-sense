@@ -179,7 +179,7 @@ export function LoginScreen({ onDone }: { onDone: () => void }) {
               <p className="text-xs text-muted mb-5">Check your inbox — it expires in 10 minutes.</p>
 
               {/* OTP boxes */}
-              <div className="flex gap-2 justify-center mb-5" onPaste={handlePaste}>
+              <div className="flex gap-1.5 sm:gap-2 justify-center mb-5" onPaste={handlePaste}>
                 {code.map((digit, i) => (
                   <input
                     key={i}
@@ -191,7 +191,7 @@ export function LoginScreen({ onDone }: { onDone: () => void }) {
                     autoFocus={i === 0}
                     onChange={(e) => handleCodeInput(i, e.target.value)}
                     onKeyDown={(e) => handleCodeKeyDown(i, e)}
-                    className="w-11 h-13 text-center text-xl font-bold bg-white/60 dark:bg-white/5 rounded-xl outline-none focus:ring-2 ring-brand-500/50 transition-all py-3"
+                    className="w-9 sm:w-11 h-11 sm:h-13 text-center text-lg sm:text-xl font-bold bg-white/60 dark:bg-white/5 rounded-xl outline-none focus:ring-2 ring-brand-500/50 transition-all"
                   />
                 ))}
               </div>
