@@ -9,7 +9,7 @@ import { getSupabaseBrowser } from "@/lib/supabase/client";
 export function LoginScreen({ onDone }: { onDone: () => void }) {
   const [email, setEmail] = useState("");
   const [step, setStep] = useState<"email" | "code">("email");
-  const [code, setCode] = useState(["", "", "", "", "", ""]);
+  const [code, setCode] = useState(["", "", "", "", "", "", "", ""]);
   const [loadingEmail, setLoadingEmail] = useState(false);
   const [loadingCode, setLoadingCode] = useState(false);
   const [verified, setVerified] = useState(false);
@@ -35,7 +35,7 @@ export function LoginScreen({ onDone }: { onDone: () => void }) {
 
   async function verifyOtp() {
     const token = code.join("");
-    if (token.length < 6) return;
+    if (token.length < 8) return;
     setLoadingCode(true);
     setError("");
     const sb = getSupabaseBrowser();
@@ -59,7 +59,7 @@ export function LoginScreen({ onDone }: { onDone: () => void }) {
     next[i] = digit;
     setCode(next);
     setError("");
-    if (digit && i < 5) inputRefs.current[i + 1]?.focus();
+    if (digit && i < 7) inputRefs.current[i + 1]?.focus();
     if (next.every(Boolean)) {
       // auto-submit when all 6 filled
       const sb = getSupabaseBrowser();
@@ -82,10 +82,10 @@ export function LoginScreen({ onDone }: { onDone: () => void }) {
   }
 
   function handlePaste(e: React.ClipboardEvent) {
-    const pasted = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 6);
+    const pasted = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 8);
     if (!pasted) return;
     e.preventDefault();
-    const next = Array.from({ length: 6 }, (_, i) => pasted[i] ?? "");
+    const next = Array.from({ length: 8 }, (_, i) => pasted[i] ?? "");
     setCode(next);
     inputRefs.current[Math.min(pasted.length, 5)]?.focus();
   }
