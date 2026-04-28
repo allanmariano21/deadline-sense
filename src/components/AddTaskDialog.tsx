@@ -1,39 +1,54 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { Plus, X } from "lucide-react";
-import { useState } from "react";
+import { Plus, X, CalendarDays } from "lucide-react";
+import { useRef, useState } from "react";
 import type { Difficulty, Task } from "@/lib/types";
 
 const emojiPalette = ["📐", "📚", "💻", "🎤", "🧬", "🧪", "🎨", "🧠", "✏️", "🎧"];
 
-export function AddTaskDialog({
-  onCreate,
-}: {
-  onCreate: (task: Task) => void;
-}) {
+function defaultDeadline() {
+  const d = new Date();
+  d.setDate(d.getDate() + 1);
+  d.setSeconds(0, 0);
+  // Format for datetime-local: YYYY-MM-DDTHH:mm
+  return d.toISOString().slice(0, 16);
+}
+
+function dueLabel(deadlineLocal: string): string {
+  if (!deadlineLocal) return "";
+  const diff = new Date(deadlineLocal).getTime() - Date.now();
+  if (diff <= 0) return "Already past due";
+  const hours = diff / 3_600_000;
+  if (hours < 24) return `Due in ${Math.round(hours)}h`;
+  const days = Math.floor(hours / 24);
+  const remHours = Math.round(hours % 24);
+  return remHours > 0 ? `Due in ${days}d ${remHours}h` : `Due in ${days}d`;
+}
+
+export function AddTaskDialog({ onCreate }: { onCreate: (task: Task) => void }) {
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [course, setCourse] = useState("");
   const [notes, setNotes] = useState("");
-  const [hours, setHours] = useState(24);
+  const [deadline, setDeadline] = useState(defaultDeadline());
   const [effort, setEffort] = useState(60);
   const [difficulty, setDifficulty] = useState<Difficulty>(3);
   const [emoji, setEmoji] = useState("📚");
 
   function reset() {
     setTitle(""); setCourse(""); setNotes("");
-    setHours(24); setEffort(60); setDifficulty(3); setEmoji("📚");
+    setDeadline(defaultDeadline()); setEffort(60); setDifficulty(3); setEmoji("📚");
   }
 
   function submit() {
-    if (!title.trim()) return;
+    if (!title.trim() || !deadline) return;
     onCreate({
-      id: typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `t-${Date.now()}`,
+      id: crypto.randomUUID(),
       title: title.trim(),
       course: course.trim() || undefined,
       notes: notes.trim() || undefined,
-      deadline: new Date(Date.now() + hours * 3_600_000).toISOString(),
+      deadline: new Date(deadline).toISOString(),
       effort_minutes: effort,
       difficulty,
       status: "todo",
@@ -87,6 +102,7 @@ export function AddTaskDialog({
                   autoFocus
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && submit()}
                   placeholder="Calculus problem set §4.3"
                   className="w-full bg-white/60 dark:bg-white/5 rounded-xl px-3 py-2.5 outline-none focus:ring-2 ring-brand-500/40"
                 />
@@ -128,16 +144,8 @@ export function AddTaskDialog({
                 />
               </Field>
 
-              <Field label={`Due in ${hours < 24 ? `${hours}h` : `${Math.round(hours / 24)}d`}`}>
-                <input
-                  type="range"
-                  min={1}
-                  max={336}
-                  value={hours}
-                  onChange={(e) => setHours(Number(e.target.value))}
-                  className="w-full accent-brand-500"
-                />
-              </Field>
+              {/* Date picker */}
+              <DeadlinePicker value={deadline} onChange={setDeadline} />
 
               <div className="grid grid-cols-2 gap-3">
                 <Field label={`Effort: ${effort < 60 ? `${effort} min` : `${(effort / 60).toFixed(effort % 60 ? 1 : 0)}h`}`}>
@@ -172,7 +180,7 @@ export function AddTaskDialog({
 
               <button
                 onClick={submit}
-                disabled={!title.trim()}
+                disabled={!title.trim() || !deadline || dueLabel(deadline).startsWith("Already")}
                 className="mt-6 w-full py-3 rounded-2xl font-semibold text-white bg-gradient-to-r from-brand-600 via-pink-500 to-amber-400 shadow-lg shadow-brand-500/30 disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-xl hover:shadow-brand-500/40 transition-shadow"
               >
                 Add to my list
@@ -182,6 +190,87 @@ export function AddTaskDialog({
         )}
       </AnimatePresence>
     </>
+  );
+}
+
+function DeadlinePicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  function preset(days: number, hour = 23, minute = 59) {
+    const d = new Date();
+    d.setDate(d.getDate() + days);
+    d.setHours(hour, minute, 0, 0);
+    onChange(d.toISOString().slice(0, 16));
+  }
+
+  const presets = [
+    { label: "Tonight", action: () => preset(0, 23, 59) },
+    { label: "Tomorrow", action: () => preset(1, 23, 59) },
+    { label: "In 3 days", action: () => preset(3, 23, 59) },
+    { label: "Next week", action: () => preset(7, 23, 59) },
+  ];
+
+  const label = dueLabel(value);
+  const isPast = label.startsWith("Already");
+
+  return (
+    <div className="mb-3">
+      <span className="text-xs uppercase tracking-wider text-muted block mb-2">Deadline</span>
+
+      {/* Preset chips */}
+      <div className="flex flex-wrap gap-2 mb-3">
+        {presets.map((p) => (
+          <button
+            key={p.label}
+            type="button"
+            onClick={p.action}
+            className="px-3 py-1.5 rounded-xl text-xs font-medium bg-white/40 dark:bg-white/5 hover:bg-brand-500/20 hover:text-brand-500 transition-all"
+          >
+            {p.label}
+          </button>
+        ))}
+        <button
+          type="button"
+          onClick={() => inputRef.current?.showPicker?.()}
+          className="px-3 py-1.5 rounded-xl text-xs font-medium bg-white/40 dark:bg-white/5 hover:bg-pink-500/20 hover:text-pink-500 transition-all flex items-center gap-1.5"
+        >
+          <CalendarDays className="w-3.5 h-3.5" /> Pick date
+        </button>
+      </div>
+
+      {/* Hidden native picker triggered by "Pick date" */}
+      <input
+        ref={inputRef}
+        type="datetime-local"
+        value={value}
+        min={new Date().toISOString().slice(0, 16)}
+        onChange={(e) => onChange(e.target.value)}
+        className="sr-only"
+      />
+
+      {/* Selected date display */}
+      {value && (
+        <motion.div
+          key={value}
+          initial={{ opacity: 0, y: -4 }}
+          animate={{ opacity: 1, y: 0 }}
+          className={`flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-medium ${
+            isPast
+              ? "bg-pink-500/15 text-pink-500"
+              : "bg-brand-500/15 text-brand-500"
+          }`}
+        >
+          <CalendarDays className="w-4 h-4 shrink-0" />
+          <span className="flex-1">
+            {new Date(value).toLocaleDateString("en-US", {
+              weekday: "short", month: "short", day: "numeric",
+              hour: "numeric", minute: "2-digit",
+            })}
+          </span>
+          <span className="font-semibold text-xs opacity-75">{label}</span>
+        </motion.div>
+      )}
+    </div>
   );
 }
 
